@@ -1,0 +1,822 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Surajgarha Nagar Parishad - Property Tax Calculator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background: linear-gradient(to bottom, #f4f4f4, #e0e7ff);
+        }
+        header {
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+            border-bottom: 2px solid #ccc;
+        }
+        header img {
+            max-width: 150px;
+            height: auto;
+            margin-bottom: 10px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        nav {
+            margin: 20px 0;
+            text-align: center;
+        }
+        nav a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #007BFF;
+            font-weight: bold;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .calculator, .road-details, .contact, .calculation-details, .home {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+        .calculator {
+            background: url('https://images.unsplash.com/photo-1454165804606-c3d57bc86b40') no-repeat center center;
+            background-size: cover;
+            background-color: rgba(255, 255, 255, 0.9);
+            background-blend-mode: overlay;
+        }
+        .home h2, .calculator h2, .road-details h2, .contact h2, .calculation-details h2 {
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        .home h2 i, .calculator h2 i, .road-details h2 i, .contact h2 i {
+            margin-right: 10px;
+            color: #007BFF;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        select, input[type="number"], input[type="date"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+        }
+        .hidden {
+            display: none;
+        }
+        footer {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f4f4f4;
+        }
+        .mixed-area, .land-building-area {
+            margin-top: 10px;
+        }
+        #toggleDetails {
+            cursor: pointer;
+            color: #007BFF;
+            text-decoration: underline;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        @media print {
+            body {
+                background: none;
+                transform: scale(0.9);
+                margin: 1in;
+            }
+            header {
+                display: block;
+            }
+            header img {
+                max-width: 100px;
+            }
+            nav, footer, button, #toggleDetails {
+                display: none;
+            }
+            .results, .calculation-details {
+                display: block !important;
+                border: none;
+                padding: 0;
+            }
+            .results p, .calculation-details p, .calculation-details ul {
+                font-size: 12pt;
+                color: black;
+            }
+            .calculator {
+                background: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="https://cdn-icons-png.flaticon.com/512/869/869869.png" alt="Surajgarha Nagar Parishad Logo">
+        <h1>Surajgarha Nagar Parishad</h1>
+    </header>
+
+    <nav>
+        <a href="#home"><i class="fas fa-home"></i> Home</a>
+        <a href="#calculator"><i class="fas fa-calculator"></i> Tax Calculator</a>
+        <a href="#rules"><i class="fas fa-book"></i> Rules</a>
+        <a href="#contact"><i class="fas fa-envelope"></i> Contact</a>
+    </nav>
+
+    <main>
+        <section id="home" class="home">
+            <h2><i class="fas fa-home"></i> Welcome to Surajgarha Nagar Parishad</h2>
+            <h3>Disclaimer</h3>
+            <p>यह आम नागरिक को जागरूक करने के लिए है। इसका मकसद नगर परिषद के कार्य में बाधा उत्पन्न करना या नवरीकों को गुमराह करना नहीं है। यह 100% एक्यूरसी की वकालत नहीं करता है। विशेष जानकारी के लिए होल्डिंग टैक्स कलेक्टर या संबंधित निकाय से संपर्क करें।</p>
+            <h3>About Surajgarha</h3>
+            <p>Surajgarha is a vibrant Nagar Parishad located in Lakhisarai district, Bihar, along the National Highway 80, offering excellent connectivity to nearby regions. Situated near the Ganges River, it serves as an important administrative and economic hub for the surrounding areas. The town is known for its blend of residential, commercial, and agricultural activities, contributing to the socio-economic growth of the region. Surajgarha hosts various local festivals and cultural events, reflecting the rich heritage of Bihar. The Surajgarha Nagar Parishad is dedicated to urban development, providing essential services such as property tax collection, infrastructure maintenance, and community welfare programs. For more details, contact the Nagar Parishad office or visit our official website.</p>
+        </section>
+
+        <section id="calculator" class="calculator">
+            <h2><i class="fas fa-calculator"></i> Property Tax Calculator</h2>
+            <p>Calculate your property tax easily in Lakhisarai, Bihar.</p>
+            <form id="taxForm">
+                <div class="form-group">
+                    <label for="propertyType">1. Property Type:</label>
+                    <select id="propertyType" name="propertyType" required aria-required="true" onchange="toggleFields()">
+                        <option value="">-- Please Select --</option>
+                        <option value="vacant">Vacant Land</option>
+                        <option value="landBuilding">Land + Building</option>
+                        <option value="apartment">Apartment/Flat/Building</option>
+                    </select>
+                </div>
+
+                <div class="form-group land-building-area hidden" id="landBuildingAreaGroup">
+                    <label for="landArea">Vacant Land Area:</label>
+                    <input type="number" id="landArea" name="landArea" min="0" step="0.01">
+                    <label for="buildingArea">Building Area (per floor):</label>
+                    <input type="number" id="buildingArea" name="buildingArea" min="0" step="0.01">
+                </div>
+
+                <div class="form-group" id="propertyUseGroup">
+                    <label for="propertyUse">2. Property Uses Type:</label>
+                    <select id="propertyUse" name="propertyUse" required aria-required="true">
+                        <option value="">-- Please Select --</option>
+                        <option value="residential">Fully Residential</option>
+                        <option value="commercial">Fully Commercial or Industrial</option>
+                        <option value="mixed">Mixed (Residential + Commercial)</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="propertyUsedByGroup">
+                    <label for="propertyUsedBy">3. Property Used By:</label>
+                    <select id="propertyUsedBy" name="propertyUsedBy" required aria-required="true" onchange="toggleMixedFields()">
+                        <option value="">-- Please Select --</option>
+                        <option value="self">Self</option>
+                        <option value="tenant">Tenant</option>
+                        <option value="mixed">Mixed: Self and Tenant</option>
+                    </select>
+                    <div class="form-group mixed-area hidden" id="mixedAreaGroup">
+                        <label for="selfArea">Area Used by Self:</label>
+                        <input type="number" id="selfArea" name="selfArea" min="0" step="0.01">
+                        <label for="tenantArea">Area Used by Tenant:</label>
+                        <input type="number" id="tenantArea" name="tenantArea" min="0" step="0.01">
+                    </div>
+                </div>
+
+                <div class="form-group" id="buildingTypeGroup">
+                    <label for="buildingType">4. Building Type:</label>
+                    <select id="buildingType" name="buildingType" required aria-required="true">
+                        <option value="">-- Please Select --</option>
+                        <option value="rcc">RCC & Pucca House</option>
+                        <option value="asbestos">Asbestos/Corrugated Sheet/Tiled Roof Pucca House</option>
+                        <option value="other">Other Buildings</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="roadType">5. Road Type:</label>
+                    <select id="roadType" name="roadType" required aria-required="true">
+                        <option value="">-- Please Select --</option>
+                        <option value="principal">Principal Main Road: Ram Nagar (Ward No. 6) to NH-80</option>
+                        <option value="main1">Main Road: Shaheed Dwar (Ward No. 14) to Municipal Office</option>
+                        <option value="main2">Main Road: Purani Bazar Chowk to Canal Link Road</option>
+                        <option value="main3">Main Road: Purani Bazar Chowk to Imam Bara</option>
+                        <option value="main4">Main Road: Patel Chowk to Samho Bridge</option>
+                        <option value="main5">Main Road: Bartalla Mod to Kali Sthan</option>
+                        <option value="main6">Main Road: Police Station to Ramchandra Sah Mill</option>
+                        <option value="main7">Main Road: Hospital Mod to Mosque</option>
+                        <option value="main8">Main Road: Pahalwan Chowk to Madrasa School</option>
+                        <option value="other">Other Road</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="areaGroup">
+                    <label for="area" id="areaLabel">6. Area (per floor):</label>
+                    <input type="number" id="area" name="area" required aria-required="true" min="0" step="0.01">
+                    <select id="unit" name="unit">
+                        <option value="sqft">Sq.Ft.</option>
+                        <option value="sqm">Sq.Meter</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="floorsGroup">
+                    <label for="floors">7. Number of Floors (Including Ground Floor):</label>
+                    <select id="floors" name="floors" required aria-required="true">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5</option>
+                        <option value="other">Other (Specify)</option>
+                    </select>
+                    <input type="number" id="otherFloors" name="otherFloors" style="display:none;" min="1">
+                </div>
+
+                <div class="form-group">
+                    <label>8. Assessment Year(s):</label>
+                    <input type="checkbox" id="year2020" name="years" value="2020-21"> 2020-21<br>
+                    <input type="checkbox" id="year2021" name="years" value="2021-22"> 2021-22<br>
+                    <input type="checkbox" id="year2022" name="years" value="2022-23"> 2022-23<br>
+                    <input type="checkbox" id="year2023" name="years" value="2023-24"> 2023-24<br>
+                    <input type="checkbox" id="year2024" name="years" value="2024-25"> 2024-25<br>
+                    <input type="checkbox" id="year2025" name="years" value="2025-26"> 2025-26<br>
+                    <input type="checkbox" id="selectAll" onclick="toggleSelectAll()"> Select All
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentDate">9. Payment Date:</label>
+                    <input type="date" id="paymentDate" name="paymentDate" required aria-required="true">
+                </div>
+
+                <button type="submit" onclick="calculateTax()">Calculate Tax</button>
+                <button type="reset" onclick="resetForm()">Reset</button>
+            </form>
+
+            <div id="results" class="results">
+                <p>Please fill the form above to calculate tax.</p>
+            </div>
+            <div id="toggleDetails" onclick="toggleDetails()">View Detailed Calculations and Rules</div>
+            <div id="calculationDetails" class="calculation-details hidden">
+                <h2><i class="fas fa-book"></i> Detailed Calculations and Rules</h2>
+                <p>Calculations and rules will be displayed here after submitting the form.</p>
+            </div>
+        </section>
+
+        <section id="rules" class="road-details">
+            <h2><i class="fas fa-book"></i> Road Category Details</h2>
+            <h3>Principal Main Road:</h3>
+            <p>Ram Nagar (Ward No. 6) to the entire urban area of National State Highway 80</p>
+            <h3>Main Road:</h3>
+            <ul>
+                <li>National State Highway - 80, from Shaheed Dwar (Ward No. 14) to Nagar Parishad Office, Madhav Sinha Chowk (Ward No. 25)</li>
+                <li>National State Highway - 80, from Purani Bazar Chowk (Ward No. 14) to Nahar Link Road (Ward No. 14)</li>
+                <li>National State Highway - 80, from Purani Bazar Chowk (border of Ward No. 16 & 17) to Imam Bara (border of Ward No. 16 & 17)</li>
+                <li>National State Highway - 80, from Patel Chowk (border of Ward No. 2 & 15) to Samho Bridge, Municipal Limit</li>
+                <li>National State Highway - 80, from Bartalla More (Ward No. 16) to Kali Asthan (Ward No. 16)</li>
+                <li>National State Highway - 80, from beside Thana (border of Ward No. 14 & 20) to Ramchandra Saw's Mill (Ward No. 14)</li>
+                <li>National State Highway - 80, from Hospital More (Ward No. 03) to Masjid (Ward No. 03)</li>
+                <li>National State Highway - 80, from Pehalwan Chowk (Ward No. 14) to Madrasa School (Ward No. 09)</li>
+            </ul>
+            <h3>Other Road:</h3>
+            <p>All other paved and unpaved roads excluding the above-mentioned roads.</p>
+        </section>
+
+        <section id="contact" class="contact">
+            <h2><i class="fas fa-envelope"></i> Contact Us</h2>
+            <p>Nagar Parishad Surajgarha, Salempur, Ward No. 25, Surajgarha, Lakhisarai District, Bihar - 811106</p>
+            <p>Email: <a href="mailto:surajgarhanp@gmail.com">surajgarhanp@gmail.com</a></p>
+            <p>Phone: <a href="tel:7004456673">7004456673</a></p>
+            <p>Website: <a href="http://surajgarhanagarparishad.in">surajgarhanagarparishad.in</a></p>
+            <p>For helpline or to contact the tax collector, please call the number above.</p>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2025 Surajgarha Nagar Parishad, Lakhisarai, Bihar. All rights reserved.</p>
+        <p>Logo by <a href="https://www.flaticon.com">Freepik</a>.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            toggleFields();
+            toggleMixedFields();
+            document.getElementById('floors').addEventListener('change', function() {
+                const otherFloors = document.getElementById('otherFloors');
+                if (otherFloors) {
+                    otherFloors.style.display = this.value === 'other' ? 'block' : 'none';
+                }
+            });
+        });
+
+        function toggleFields() {
+            const propertyType = document.getElementById('propertyType')?.value;
+            const propertyUseGroup = document.getElementById('propertyUseGroup');
+            const propertyUsedByGroup = document.getElementById('propertyUsedByGroup');
+            const buildingTypeGroup = document.getElementById('buildingTypeGroup');
+            const floorsGroup = document.getElementById('floorsGroup');
+            const areaGroup = document.getElementById('areaGroup');
+            const areaLabel = document.getElementById('areaLabel');
+            const landBuildingAreaGroup = document.getElementById('landBuildingAreaGroup');
+
+            if (!propertyUseGroup || !propertyUsedByGroup || !buildingTypeGroup || !floorsGroup || !areaGroup || !areaLabel || !landBuildingAreaGroup) {
+                console.error('One or more form elements not found.');
+                return;
+            }
+
+            if (propertyType === 'vacant') {
+                propertyUseGroup.classList.add('hidden');
+                propertyUsedByGroup.classList.add('hidden');
+                buildingTypeGroup.classList.add('hidden');
+                floorsGroup.classList.add('hidden');
+                landBuildingAreaGroup.classList.add('hidden');
+                areaLabel.textContent = '6. Area of Vacant Plot:';
+                document.getElementById('propertyUse').removeAttribute('required');
+                document.getElementById('propertyUsedBy').removeAttribute('required');
+                document.getElementById('buildingType').removeAttribute('required');
+                document.getElementById('floors').removeAttribute('required');
+                document.getElementById('area').setAttribute('required', 'true');
+                document.getElementById('landArea').removeAttribute('required');
+                document.getElementById('buildingArea').removeAttribute('required');
+            } else if (propertyType === 'landBuilding') {
+                propertyUseGroup.classList.remove('hidden');
+                propertyUsedByGroup.classList.remove('hidden');
+                buildingTypeGroup.classList.remove('hidden');
+                floorsGroup.classList.remove('hidden');
+                landBuildingAreaGroup.classList.remove('hidden');
+                areaGroup.classList.add('hidden');
+                areaLabel.textContent = '6. Area:';
+                document.getElementById('propertyUse').setAttribute('required', 'true');
+                document.getElementById('propertyUsedBy').setAttribute('required', 'true');
+                document.getElementById('buildingType').setAttribute('required', 'true');
+                document.getElementById('floors').setAttribute('required', 'true');
+                document.getElementById('area').removeAttribute('required');
+                document.getElementById('landArea').setAttribute('required', 'true');
+                document.getElementById('buildingArea').setAttribute('required', 'true');
+            } else {
+                propertyUseGroup.classList.remove('hidden');
+                propertyUsedByGroup.classList.remove('hidden');
+                buildingTypeGroup.classList.remove('hidden');
+                floorsGroup.classList.remove('hidden');
+                landBuildingAreaGroup.classList.add('hidden');
+                areaLabel.textContent = '6. Area (per floor):';
+                document.getElementById('propertyUse').setAttribute('required', 'true');
+                document.getElementById('propertyUsedBy').setAttribute('required', 'true');
+                document.getElementById('buildingType').setAttribute('required', 'true');
+                document.getElementById('floors').setAttribute('required', 'true');
+                document.getElementById('area').setAttribute('required', 'true');
+                document.getElementById('landArea').removeAttribute('required');
+                document.getElementById('buildingArea').removeAttribute('required');
+            }
+            toggleMixedFields();
+        }
+
+        function toggleMixedFields() {
+            const propertyUsedBy = document.getElementById('propertyUsedBy')?.value;
+            const mixedAreaGroup = document.getElementById('mixedAreaGroup');
+            if (!mixedAreaGroup) {
+                console.error('Mixed area group element not found.');
+                return;
+            }
+            if (propertyUsedBy === 'mixed') {
+                mixedAreaGroup.classList.remove('hidden');
+                document.getElementById('selfArea').setAttribute('required', 'true');
+                document.getElementById('tenantArea').setAttribute('required', 'true');
+            } else {
+                mixedAreaGroup.classList.add('hidden');
+                document.getElementById('selfArea').removeAttribute('required');
+                document.getElementById('tenantArea').removeAttribute('required');
+            }
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('input[name="years"]');
+            const selectAll = document.getElementById('selectAll');
+            if (selectAll) {
+                checkboxes.forEach(checkbox => checkbox.checked = selectAll.checked);
+            }
+        }
+
+        function toggleDetails() {
+            const detailsDiv = document.getElementById('calculationDetails');
+            if (detailsDiv) {
+                detailsDiv.classList.toggle('hidden');
+            }
+        }
+
+        function printResults() {
+            window.print();
+        }
+
+        function calculateTax() {
+            event.preventDefault();
+            const propertyType = document.getElementById('propertyType')?.value;
+            const propertyUse = document.getElementById('propertyUse')?.value;
+            const propertyUsedBy = document.getElementById('propertyUsedBy')?.value;
+            const buildingType = document.getElementById('buildingType')?.value;
+            const roadType = document.getElementById('roadType')?.value;
+            const area = parseFloat(document.getElementById('area')?.value);
+            const landArea = parseFloat(document.getElementById('landArea')?.value);
+            const buildingArea = parseFloat(document.getElementById('buildingArea')?.value);
+            const unit = document.getElementById('unit')?.value;
+            const years = Array.from(document.querySelectorAll('input[name="years"]:checked')).map(cb => cb.value);
+            const paymentDate = document.getElementById('paymentDate')?.value;
+            const resultsDiv = document.getElementById('results');
+            const detailsDiv = document.getElementById('calculationDetails');
+
+            if (!resultsDiv || !detailsDiv) {
+                console.error('Results or details div not found.');
+                return;
+            }
+
+            // Input validation
+            if (!propertyType || !roadType || years.length === 0 || !paymentDate) {
+                resultsDiv.innerHTML = '<p style="color:red;">Please fill all required fields and select at least one year and payment date.</p>';
+                return;
+            }
+            if (propertyType === 'vacant' && (isNaN(area) || area <= 0)) {
+                resultsDiv.innerHTML = '<p style="color:red;">Please enter a valid area for vacant land.</p>';
+                return;
+            }
+            if (propertyType === 'landBuilding' && (isNaN(landArea) || landArea <= 0 || isNaN(buildingArea) || buildingArea <= 0)) {
+                resultsDiv.innerHTML = '<p style="color:red;">Please enter valid areas for both land and building.</p>';
+                return;
+            }
+            if (propertyType !== 'vacant' && (!propertyUse || !propertyUsedBy || !buildingType)) {
+                resultsDiv.innerHTML = '<p style="color:red;">Please select property use, user, and building type.</p>';
+                return;
+            }
+            if (propertyType !== 'vacant' && propertyType !== 'landBuilding' && (isNaN(area) || area <= 0)) {
+                resultsDiv.innerHTML = '<p style="color:red;">Please enter a valid area.</p>';
+                return;
+            }
+            if (propertyUsedBy === 'mixed') {
+                const selfArea = parseFloat(document.getElementById('selfArea')?.value);
+                const tenantArea = parseFloat(document.getElementById('tenantArea')?.value);
+                if (isNaN(selfArea) || selfArea < 0 || isNaN(tenantArea) || tenantArea < 0) {
+                    resultsDiv.innerHTML = '<p style="color:red;">Please enter valid areas for self and tenant.</p>';
+                    return;
+                }
+                const totalArea = propertyType === 'landBuilding' ? buildingArea : area;
+                if ((selfArea + tenantArea).toFixed(2) !== totalArea.toFixed(2)) {
+                    resultsDiv.innerHTML = '<p style="color:red;">The sum of self and tenant areas must equal the total building area.</p>';
+                    return;
+                }
+            }
+
+            let landAreaInSqft = propertyType === 'landBuilding' ? (unit === 'sqm' ? landArea * 10.76391 : landArea) : 0;
+            let buildingAreaInSqft = propertyType !== 'vacant' ? (unit === 'sqm' ? (propertyType === 'landBuilding' ? buildingArea : area) * 10.76391 : (propertyType === 'landBuilding' ? buildingArea : area)) : 0;
+            let taxRateSelf = 0;
+            let taxRateTenant = 0;
+            let landTaxRate = 0;
+            let usableAreaSelf = 0;
+            let usableAreaTenant = 0;
+            const isPrincipalOrMainRoad = roadType === 'principal' || roadType.startsWith('main');
+            let floors = 1;
+
+            if (propertyType !== 'vacant') {
+                floors = document.getElementById('floors').value === 'other' ?
+                    parseInt(document.getElementById('otherFloors')?.value) || 1 :
+                    parseInt(document.getElementById('floors')?.value);
+                buildingAreaInSqft *= floors; // Total building area (X)
+                if (buildingType === 'rcc') {
+                    taxRateSelf = roadType === 'principal' ? 43 : isPrincipalOrMainRoad ? 30 : 15;
+                } else if (buildingType === 'asbestos') {
+                    taxRateSelf = roadType === 'principal' ? 10 : isPrincipalOrMainRoad ? 30 : 20;
+                } else if (buildingType === 'other') {
+                    taxRateSelf = roadType === 'principal' ? 5 : isPrincipalOrMainRoad ? 15 : 10;
+                }
+                const areaPercentage = propertyUse === 'residential' ? 0.7 : 0.8; // 70% for residential, 80% for commercial/mixed
+                usableAreaSelf = buildingAreaInSqft * areaPercentage; // Usable area (C)
+                usableAreaTenant = buildingAreaInSqft * areaPercentage;
+            }
+            if (propertyType === 'vacant' || propertyType === 'landBuilding') {
+                landAreaInSqft = unit === 'sqm' ? (propertyType === 'vacant' ? area : landArea) * 10.76391 : (propertyType === 'vacant' ? area : landArea);
+                landTaxRate = roadType === 'principal' ? 0.38 : isPrincipalOrMainRoad ? 0.28 : 0.19;
+            }
+            taxRateTenant = taxRateSelf * 1.5; // Tenant rate: 1.5x self rate
+
+            // Calculate taxes
+            let landTaxPerYear = 0;
+            let buildingTaxPerYear = 0;
+            let selfTax = 0;
+            let tenantTax = 0;
+            let selfRentalValue = 0;
+            let tenantRentalValue = 0;
+
+            // Vacant land tax
+            if (propertyType === 'vacant' || propertyType === 'landBuilding') {
+                landTaxPerYear = landAreaInSqft * landTaxRate; // Direct tax, no 9% or percentage adjustment
+            }
+
+            // Building tax
+            if (propertyType !== 'vacant') {
+                if (propertyUsedBy === 'mixed') {
+                    let selfArea = parseFloat(document.getElementById('selfArea')?.value);
+                    let tenantArea = parseFloat(document.getElementById('tenantArea')?.value);
+                    if (unit === 'sqm') {
+                        selfArea *= 10.76391;
+                        tenantArea *= 10.76391;
+                    }
+                    selfArea *= floors;
+                    tenantArea *= floors;
+                    const areaPercentage = propertyUse === 'residential' ? 0.7 : 0.8;
+                    selfArea *= areaPercentage;
+                    tenantArea *= areaPercentage;
+                    selfRentalValue = selfArea * taxRateSelf; // Average Rental Value (V) for self
+                    tenantRentalValue = tenantArea * taxRateTenant; // Average Rental Value (V) for tenant
+                    selfTax = selfRentalValue * 0.09; // Annual tax for self
+                    tenantTax = tenantRentalValue * 0.09; // Annual tax for tenant
+                    buildingTaxPerYear = selfTax + tenantTax;
+                } else {
+                    const taxRate = propertyUsedBy === 'tenant' ? taxRateTenant : taxRateSelf;
+                    const usableArea = propertyUsedBy === 'tenant' ? usableAreaTenant : usableAreaSelf;
+                    const rentalValue = usableArea * taxRate; // Average Rental Value (V)
+                    buildingTaxPerYear = rentalValue * 0.09; // Annual Tax Rate
+                }
+            }
+
+            const totalTaxPerYear = landTaxPerYear + buildingTaxPerYear;
+
+            // Interest and rebate calculations
+            const buildingMonthlyTax = buildingTaxPerYear / 12;
+            let totalTax = 0;
+            let detailedCalculations = '<h3>Tax Calculation Details</h3>';
+
+            if (propertyType === 'vacant' || propertyType === 'landBuilding') {
+                detailedCalculations += `<p>Vacant Land Area: ${landAreaInSqft.toFixed(2)} Sq.Ft.</p>`;
+                detailedCalculations += `<p>Vacant Land Tax Rate: ₹${landTaxRate.toFixed(2)}/sq.ft.</p>`;
+                detailedCalculations += `<p>Vacant Land Annual Tax: ${landAreaInSqft.toFixed(2)} Sq.Ft. * ₹${landTaxRate.toFixed(2)} = ₹${landTaxPerYear.toFixed(2)}</p>`;
+            }
+            if (propertyType !== 'vacant') {
+                detailedCalculations += `<p>Total Building Area (X): ${buildingAreaInSqft.toFixed(2)} Sq.Ft.</p>`;
+                detailedCalculations += `<p>Usable Building Area (C): ${propertyUse === 'residential' ? '70%' : '80%'} of Total Area = ${(buildingAreaInSqft * (propertyUse === 'residential' ? 0.7 : 0.8)).toFixed(2)} Sq.Ft.</p>`;
+                if (propertyUsedBy === 'mixed') {
+                    let selfArea = parseFloat(document.getElementById('selfArea')?.value);
+                    let tenantArea = parseFloat(document.getElementById('tenantArea')?.value);
+                    if (unit === 'sqm') {
+                        selfArea *= 10.76391;
+                        tenantArea *= 10.76391;
+                    }
+                    selfArea *= floors;
+                    tenantArea *= floors;
+                    const areaPercentage = propertyUse === 'residential' ? 0.7 : 0.8;
+                    selfArea *= areaPercentage;
+                    tenantArea *= areaPercentage;
+                    detailedCalculations += `<p>Self Area: ${selfArea.toFixed(2)} Sq.Ft. at ₹${taxRateSelf.toFixed(2)}/sq.ft. = Rental Value ₹${selfRentalValue.toFixed(2)}</p>`;
+                    detailedCalculations += `<p>Self Annual Tax: ₹${selfRentalValue.toFixed(2)} * 9% = ₹${selfTax.toFixed(2)}</p>`;
+                    detailedCalculations += `<p>Tenant Area: ${tenantArea.toFixed(2)} Sq.Ft. at ₹${taxRateTenant.toFixed(2)}/sq.ft. = Rental Value ₹${tenantRentalValue.toFixed(2)}</p>`;
+                    detailedCalculations += `<p>Tenant Annual Tax: ₹${tenantRentalValue.toFixed(2)} * 9% = ₹${tenantTax.toFixed(2)}</p>`;
+                } else {
+                    const taxRate = propertyUsedBy === 'tenant' ? taxRateTenant : taxRateSelf;
+                    const rentalValue = usableAreaSelf * taxRate;
+                    detailedCalculations += `<p>Average Rental Value (V): ${usableAreaSelf.toFixed(2)} Sq.Ft. at ₹${taxRate.toFixed(2)}/sq.ft. = ₹${rentalValue.toFixed(2)}</p>`;
+                    detailedCalculations += `<p>Building Annual Tax: ₹${rentalValue.toFixed(2)} * 9% = ₹${buildingTaxPerYear.toFixed(2)}</p>`;
+                }
+            }
+            detailedCalculations += `<p>Total Annual Tax: ₹${totalTaxPerYear.toFixed(2)}</p>`;
+
+            const paymentDateObj = new Date(paymentDate);
+            const currentYear = '2025-26';
+            years.forEach(year => {
+                let landYearTax = landTaxPerYear;
+                let buildingYearTax = buildingTaxPerYear;
+                if (year !== currentYear) {
+                    const yearsPast = parseInt(currentYear.split('-')[0]) - parseInt(year.split('-')[0]);
+                    let landInterestRate = 0;
+                    if (yearsPast === 1) landInterestRate = 0.15; // 2024-25
+                    else if (yearsPast === 2) landInterestRate = 0.33; // 2023-24
+                    else landInterestRate = 0.51; // 2022-23 and earlier
+                    const landInterest = landTaxPerYear * landInterestRate;
+                    landYearTax += landInterest;
+                    const buildingInterest = buildingTaxPerYear * (Math.pow(1 + 0.18, yearsPast) - 1); // 18% annually
+                    buildingYearTax += buildingInterest;
+                    detailedCalculations += `<p>Year ${year}:`;
+                    if (landTaxPerYear > 0) {
+                        detailedCalculations += ` Land Tax ₹${landTaxPerYear.toFixed(2)} + Interest (${(landInterestRate * 100).toFixed(0)}%) ₹${landInterest.toFixed(2)} = ₹${landYearTax.toFixed(2)};`;
+                    }
+                    if (buildingTaxPerYear > 0) {
+                        detailedCalculations += ` Building Tax ₹${buildingTaxPerYear.toFixed(2)} + Interest (18% annually for ${yearsPast} years) ₹${buildingInterest.toFixed(2)} = ₹${buildingYearTax.toFixed(2)}`;
+                    }
+                    detailedCalculations += `</p>`;
+                } else {
+                    const paymentMonth = paymentDateObj.getMonth(); // 0 = Jan, 6 = Jul, 7 = Aug
+                    if (paymentDateObj.getFullYear() === 2025 && paymentMonth <= 5) { // Before June 30, 2025
+                        buildingYearTax *= 0.95; // 5% rebate for building
+                        detailedCalculations += `<p>Year ${year}: Land Tax ₹${landTaxPerYear.toFixed(2)} (No interest); Building Tax ₹${buildingTaxPerYear.toFixed(2)} - 5% Rebate = ₹${buildingYearTax.toFixed(2)}</p>`;
+                    } else if (paymentDateObj.getFullYear() === 2025 && paymentMonth === 6) { // July 2025
+                        detailedCalculations += `<p>Year ${year}: Land Tax ₹${landTaxPerYear.toFixed(2)} (No interest); Building Tax ₹${buildingTaxPerYear.toFixed(2)} (No rebate or interest)</p>`;
+                    } else if (paymentDateObj.getFullYear() === 2025 && paymentMonth >= 7) { // After July 2025
+                        const monthsLate = paymentMonth - 7 + 1; // Months from August
+                        const buildingInterest = buildingMonthlyTax * monthsLate * 0.015; // 1.5% per month
+                        buildingYearTax += buildingInterest;
+                        detailedCalculations += `<p>Year ${year}: Land Tax ₹${landTaxPerYear.toFixed(2)} (No interest); Building Tax ₹${buildingTaxPerYear.toFixed(2)} + Interest (1.5% monthly for ${monthsLate} months) ₹${buildingInterest.toFixed(2)} = ₹${buildingYearTax.toFixed(2)}</p>`;
+                    } else if (paymentDateObj.getFullYear() > 2025) { // After 2025
+                        const monthsLate = (12 - 7) + 1; // Aug 2025 to Mar 2026
+                        const buildingInterest = buildingMonthlyTax * monthsLate * 0.015;
+                        buildingYearTax += buildingInterest;
+                        detailedCalculations += `<p>Year ${year}: Land Tax ₹${landTaxPerYear.toFixed(2)} (No interest); Building Tax ₹${buildingTaxPerYear.toFixed(2)} + Interest (1.5% monthly for ${monthsLate} months) ₹${buildingInterest.toFixed(2)} = ₹${buildingYearTax.toFixed(2)}</p>`;
+                    }
+                }
+                totalTax += landYearTax + buildingYearTax;
+            });
+
+            let resultHTML = `<p>Calculation Results:</p>`;
+            if (propertyType === 'vacant' || propertyType === 'landBuilding') {
+                resultHTML += `<p>Vacant Land Area: ${(landAreaInSqft / (unit === 'sqm' ? 10.76391 : 1)).toFixed(2)} ${unit === 'sqft' ? 'Sq.Ft.' : 'Sq.Meter'} (${landAreaInSqft.toFixed(2)} Sq.Ft.)</p>`;
+            }
+            if (propertyType !== 'vacant') {
+                const inputArea = propertyType === 'landBuilding' ? buildingArea : area;
+                resultHTML += `<p>Building Area: ${(inputArea).toFixed(2)} ${unit === 'sqft' ? 'Sq.Ft.' : 'Sq.Meter'} per floor, ${floors} floors (${buildingAreaInSqft.toFixed(2)} Sq.Ft. total)</p>`;
+                const areaPercentage = propertyUse === 'residential' ? 0.7 : 0.8;
+                resultHTML += `<p>Usable Building Area: ${(buildingAreaInSqft * areaPercentage).toFixed(2)} Sq.Ft. (${propertyUse === 'residential' ? '70%' : '80%'} of total)</p>`;
+                if (propertyUsedBy === 'mixed') {
+                    let selfArea = parseFloat(document.getElementById('selfArea')?.value);
+                    let tenantArea = parseFloat(document.getElementById('tenantArea')?.value);
+                    resultHTML += `
+                        <p>Area Used by Self: ${selfArea.toFixed(2)} ${unit === 'sqft' ? 'Sq.Ft.' : 'Sq.Meter'} (Tax: ₹${selfTax.toFixed(2)})</p>
+                        <p>Area Used by Tenant: ${tenantArea.toFixed(2)} ${unit === 'sqft' ? 'Sq.Ft.' : 'Sq.Meter'} (Tax: ₹${tenantTax.toFixed(2)})</p>
+                    `;
+                }
+            }
+            resultHTML += `
+                <p>Selected Years: ${years.join(', ')}</p>
+                <p>Annual Tax (Land: ₹${landTaxPerYear.toFixed(2)}, Building: ₹${buildingTaxPerYear.toFixed(2)}): ₹${totalTaxPerYear.toFixed(2)}</p>
+                <p>Total Tax (with interest/rebate): ₹${totalTax.toFixed(2)} (for ${years.length} years)</p>
+                <button onclick="printResults()">Print/Save as PDF</button>
+                <p style="font-size: 0.9em; color: #555;">To save as PDF, click the button above, select "Save as PDF" in the print dialog, and choose a location to save the file.</p>
+            `;
+            resultsDiv.innerHTML = resultHTML;
+
+            // Detailed calculations and rules
+            detailedCalculations += `
+                <h3>Holding Tax Rules</h3>
+                <ul>
+                    <li>Vacant Land:
+                        <ul>
+                            <li>Tax Rates:
+                                <ul>
+                                    <li>Principal Main Road: ₹0.38/sq.ft.</li>
+                                    <li>Main Road: ₹0.28/sq.ft.</li>
+                                    <li>Other Road: ₹0.19/sq.ft.</li>
+                                </ul>
+                            </li>
+                            <li>Interest:
+                                <ul>
+                                    <li>2025-26: No interest</li>
+                                    <li>2024-25: 15% interest</li>
+                                    <li>2023-24: 33% interest</li>
+                                    <li>2022-23 and earlier: 51% interest</li>
+                                </ul>
+                            </li>
+                            <li>Calculation: Area * Tax Rate</li>
+                        </ul>
+                    </li>
+                    <li>Land + Building:
+                        <ul>
+                            <li>Land Portion: Use Vacant Land rules</li>
+                            <li>Building Portion: Use Building rules below</li>
+                        </ul>
+                    </li>
+                    <li>Building (Apartment/Flat/Building or Building Portion of Land + Building):
+                        <ul>
+                            <li>Calculation Steps:
+                                <ul>
+                                    <li>Step 1: Total Area (X) = Area per floor * Number of floors</li>
+                                    <li>Step 2: Usable Area (C) = X * 70% (Residential) or 80% (Commercial/Mixed)</li>
+                                    <li>Step 3: Average Rental Value (V) = C * Tax Rate per sq.ft.</li>
+                                    <li>Step 4: Annual Tax = V * 9%</li>
+                                </ul>
+                            </li>
+                            <li>Tax Rates:
+                                <ul>
+                                    <li>RCC & Pucca House:
+                                        <ul>
+                                            <li>Self: ₹43/sq.ft. (Principal Main Road), ₹30/sq.ft. (Main Road), ₹15/sq.ft. (Other Road)</li>
+                                            <li>Tenant: ₹64.5/sq.ft. (Principal Main Road), ₹45/sq.ft. (Main Road), ₹22.5/sq.ft. (Other Road)</li>
+                                        </ul>
+                                    </li>
+                                    <li>Asbestos/Corrugated Sheet/Tiled Roof Pucca House:
+                                        <ul>
+                                            <li>Self: ₹10/sq.ft. (Principal Main Road), ₹30/sq.ft. (Main Road), ₹20/sq.ft. (Other Road)</li>
+                                            <li>Tenant: ₹15/sq.ft. (Principal Main Road), ₹45/sq.ft. (Main Road), ₹30/sq.ft. (Other Road)</li>
+                                        </ul>
+                                    </li>
+                                    <li>Other Buildings:
+                                        <ul>
+                                            <li>Self: ₹5/sq.ft. (Principal Main Road), ₹15/sq.ft. (Main Road), ₹10/sq.ft. (Other Road)</li>
+                                            <li>Tenant: ₹7.5/sq.ft. (Principal Main Road), ₹22.5/sq.ft. (Main Road), ₹15/sq.ft. (Other Road)</li>
+                                        </ul>
+                                    </li>
+                                    <li>Mixed (Self and Tenant): Calculate V separately for Self and Tenant areas, sum, then apply 9%.</li>
+                                </ul>
+                            </li>
+                            <li>Interest and Rebate:
+                                <ul>
+                                    <li>Past Years: 18% annual interest (1.5% monthly, compounded)</li>
+                                    <li>Current Financial Year (2025-26):
+                                        <ul>
+                                            <li>Before June 30, 2025: 5% rebate</li>
+                                            <li>In July 2025: No rebate or interest</li>
+                                            <li>After July 2025: 1.5% monthly interest based on months from August to payment date</li>
+                                        </ul>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>SAS form mandatory for self-assessment</li>
+                    <li>Objections/suggestions: Submit to Nagar Parishad office within 30 days from 12/02/24</li>
+                </ul>
+                <p>For detailed information and payment, visit <a href="http://surajgarhanagarparishad.in">surajgarhanagarparishad.in</a>.</p>
+            `;
+            detailsDiv.innerHTML = detailedCalculations;
+        }
+
+        function resetForm() {
+            const taxForm = document.getElementById('taxForm');
+            const resultsDiv = document.getElementById('results');
+            const detailsDiv = document.getElementById('calculationDetails');
+            if (taxForm && resultsDiv && detailsDiv) {
+                taxForm.reset();
+                resultsDiv.innerHTML = '<p>Please fill the form above to calculate tax.</p>';
+                detailsDiv.innerHTML = '<h2><i class="fas fa-book"></i> Detailed Calculations and Rules</h2><p>Calculations and rules will be displayed here after submitting the form.</p>';
+                toggleFields();
+                toggleMixedFields();
+                const otherFloors = document.getElementById('otherFloors');
+                if (otherFloors) {
+                    otherFloors.style.display = 'none';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
